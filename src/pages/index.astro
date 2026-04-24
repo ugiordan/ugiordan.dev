@@ -1,0 +1,81 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+import { getCollection } from 'astro:content';
+import FormattedDate from '../components/FormattedDate.astro';
+
+const posts = (await getCollection('blog')).sort(
+	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<section>
+				<p>{SITE_DESCRIPTION}</p>
+			</section>
+			<section>
+				<h2>Latest Posts</h2>
+				<ul>
+					{posts.map((post) => (
+						<li>
+							<a href={`/blog/${post.id}/`}>
+								<h4>{post.data.title}</h4>
+								<p class="date"><FormattedDate date={post.data.pubDate} /></p>
+								<p class="description">{post.data.description}</p>
+							</a>
+						</li>
+					))}
+				</ul>
+			</section>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	ul {
+		list-style: none;
+		padding: 0;
+	}
+	ul li {
+		margin-bottom: 1.5em;
+	}
+	ul li a {
+		text-decoration: none;
+		display: block;
+		padding: 1em;
+		border-radius: 8px;
+		border: 1px solid rgb(var(--gray-light));
+		transition: box-shadow 0.2s ease;
+	}
+	ul li a:hover {
+		box-shadow: var(--box-shadow);
+	}
+	ul li a h4 {
+		margin: 0;
+		color: rgb(var(--black));
+	}
+	.date {
+		margin: 0.25em 0;
+		color: rgb(var(--gray));
+		font-size: 0.875em;
+	}
+	.description {
+		margin: 0;
+		color: rgb(var(--gray-dark));
+		font-size: 0.95em;
+	}
+	h2 {
+		font-size: 1.5em;
+		margin-top: 2em;
+	}
+</style>
