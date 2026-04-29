@@ -1,0 +1,87 @@
+---
+interface Props {
+	title: string;
+	description: string;
+	tags: string[];
+	links: { label: string; url: string }[];
+	visibility: 'public' | 'private';
+}
+
+const { title, description, tags, links, visibility } = Astro.props;
+---
+
+<div class="project-card">
+	<div class="tags">
+		{tags.map((tag) => (
+			<span class="tag">{tag}</span>
+		))}
+	</div>
+	<h4>{title}</h4>
+	<p>{description}</p>
+	<div class="links">
+		{links.length > 0 ? (
+			links.map((link) => (
+				<a href={link.url} target={link.url.startsWith('/') ? undefined : '_blank'} rel={link.url.startsWith('/') ? undefined : 'noopener noreferrer'}>
+					{link.label} &rarr;
+				</a>
+			))
+		) : visibility === 'private' ? (
+			<span class="private">Private repo</span>
+		) : null}
+	</div>
+</div>
+
+<style>
+	.project-card {
+		background: var(--bg-secondary);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		padding: 1.25em;
+		transition: border-color 0.15s ease;
+	}
+	.project-card:hover {
+		border-color: var(--border-hover);
+	}
+	.tags {
+		display: flex;
+		gap: 0.5em;
+		margin-bottom: 0.75em;
+		flex-wrap: wrap;
+	}
+	.tag {
+		padding: 2px 8px;
+		border-radius: 4px;
+		font-size: 0.7em;
+		background: var(--code-bg);
+		color: var(--accent);
+	}
+	h4 {
+		color: var(--text);
+		font-size: 0.95em;
+		margin-bottom: 0.4em;
+	}
+	p {
+		color: var(--text-secondary);
+		font-size: 0.8em;
+		line-height: 1.5;
+		margin: 0;
+	}
+	.links {
+		margin-top: 0.75em;
+		display: flex;
+		gap: 0.75em;
+	}
+	.links a {
+		color: var(--accent);
+		font-size: 0.75em;
+		text-decoration: none;
+	}
+	.links a:hover {
+		color: var(--accent-hover);
+		text-decoration: underline;
+	}
+	.private {
+		color: var(--text-muted);
+		font-size: 0.75em;
+	}
+</style>

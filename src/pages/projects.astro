@@ -1,0 +1,59 @@
+---
+import Layout from '../layouts/Page.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+import { getCollection } from 'astro:content';
+
+const allProjects = (await getCollection('projects')).sort(
+	(a, b) => a.data.order - b.data.order,
+);
+
+const categories = ['Security & Platform', 'AI Tooling', 'Developer Tools', 'Pipeline Validation'] as const;
+const grouped = categories.map((cat) => ({
+	category: cat,
+	projects: allProjects.filter((p) => p.data.category === cat),
+})).filter((g) => g.projects.length > 0);
+---
+
+<Layout title="Projects" description="Projects by Ugo Giordano">
+	{grouped.map((group) => (
+		<section>
+			<h2>{group.category}</h2>
+			<div class="grid">
+				{group.projects.map((project) => (
+					<ProjectCard
+						title={project.data.title}
+						description={project.data.description}
+						tags={project.data.tags}
+						links={project.data.links}
+						visibility={project.data.visibility}
+					/>
+				))}
+			</div>
+		</section>
+	))}
+</Layout>
+
+<style>
+	h2 {
+		color: var(--text-muted);
+		font-weight: 400;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		font-size: 0.7em;
+		margin-top: 2.5em;
+		margin-bottom: 1.25em;
+	}
+	section:first-of-type h2 {
+		margin-top: 0;
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.75em;
+	}
+	@media (max-width: 720px) {
+		.grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
