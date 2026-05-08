@@ -1,7 +1,7 @@
 ---
 title: 'Building an AI-powered browser extension for tab lifecycle management'
 description: 'How I built a Chrome extension with a skill-based AI integration that lets any AI agent manage browser tabs through natural language, using a bridge REST API and curl commands.'
-pubDate: 'Apr 24 2026'
+pubDate: 'May 07 2026'
 ---
 
 I have a tab problem. Not the "20 tabs" kind. The "80 tabs across 3 windows and I lost that one page I was reading yesterday" kind. Tabs serve as reminders, reading queues and status dashboards all at once, and none of those jobs get done well when they're buried in a sea of other tabs.
@@ -127,11 +127,21 @@ This is my favorite feature. When I join a meeting, I tell Claude "meeting mode"
 
 Under the hood, `POST /meeting/start` stores all active tab URLs and positions, then closes them. A placeholder tab keeps each window alive so Chrome doesn't collapse empty windows. `POST /meeting/end` reopens everything in the correct windows, then cleans up the placeholder tabs. Pinned tabs are never touched.
 
+Tabs matching configurable exclude patterns (default: `meet.google.com`) are also kept open. This covers a real scenario: you're already in a Google Meet call, you want to clean up your browser, but you don't want to drop out of the call and have to rejoin. The exclude list is configurable, so you can add `zoom.us` or `teams.microsoft.com` if those are your tools.
+
 ## Watch mode
 
 Watch mode lets you monitor specific elements on a page without keeping the tab open. You give it a CSS selector, and the extension polls the element's text content for changes. When something changes, it sends a Chrome notification.
 
 Practical uses: monitoring a CI pipeline status badge, watching a PR's review count or checking if a deploy page shows "complete." The CSS selector targeting means it works on any page without needing site-specific integrations.
+
+## Session restore
+
+Chrome's built-in "Continue where you left off" doesn't always work, especially after crashes or forced restarts. The extension solves this by continuously snapshotting all open tabs to Chrome Storage (debounced on every tab create, remove or URL change). On browser startup, it compares the snapshot to what Chrome actually restored and identifies anything missing.
+
+If tabs were lost, the extension shows a notification and a banner in the popup where you can restore all tabs, cherry-pick from a list or dismiss. Snapshots expire after 7 days to avoid restoring stale sessions from weeks ago.
+
+As a fallback, if no local snapshot exists (fresh install, cleared storage), the extension fetches the last known tab list from the bridge server. Since the bridge already receives periodic tab syncs over WebSocket, it always has a recent copy. This means tab restore works across Chrome profile resets as long as the bridge was running.
 
 ## Security decisions
 
