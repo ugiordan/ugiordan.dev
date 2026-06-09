@@ -89,20 +89,6 @@
 		@apply text-[0.9rem] leading-relaxed;
 	}
 
-	/* Shiki dual-theme: dark by default, light when .light class is set */
-	html:not(.light) .astro-code {
-		background-color: var(--shiki-dark-bg, #0d1117) !important;
-	}
-	html:not(.light) .astro-code span {
-		color: var(--shiki-dark, inherit) !important;
-	}
-	html.light .astro-code {
-		background-color: var(--shiki-light-bg, #f6f8fa) !important;
-	}
-	html.light .astro-code span {
-		color: var(--shiki-light, inherit) !important;
-	}
-
 	blockquote {
 		@apply pl-5 my-6 italic;
 		border-left: 3px solid var(--color-accent);
