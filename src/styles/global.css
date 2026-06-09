@@ -81,20 +81,26 @@
 
 	pre {
 		@apply p-5 rounded-lg overflow-x-auto my-6;
-		background-color: #0d1117 !important;
 		border: 1px solid var(--color-border);
-	}
-	:root.light pre {
-		background-color: #f6f8fa !important;
 	}
 	pre > code {
 		all: unset;
 		font-family: "SF Mono", Monaco, Menlo, Consolas, monospace;
 		@apply text-[0.9rem] leading-relaxed;
-		color: #e6edf3;
 	}
-	:root.light pre > code {
-		color: #1f2328;
+
+	/* Shiki dual-theme: dark by default, light when .light class is set */
+	html:not(.light) .astro-code {
+		background-color: var(--shiki-dark-bg, #0d1117) !important;
+	}
+	html:not(.light) .astro-code span {
+		color: var(--shiki-dark, inherit) !important;
+	}
+	html.light .astro-code {
+		background-color: var(--shiki-light-bg, #f6f8fa) !important;
+	}
+	html.light .astro-code span {
+		color: var(--shiki-light, inherit) !important;
 	}
 
 	blockquote {
