@@ -12,6 +12,14 @@ export default defineConfig({
 	output: 'static',
 	adapter: vercel(),
 	integrations: [mdx(), sitemap()],
+	markdown: {
+		shikiConfig: {
+			themes: {
+				dark: 'github-dark',
+				light: 'github-light',
+			},
+		},
+	},
 	vite: {
 		plugins: [tailwindcss()],
 	},
