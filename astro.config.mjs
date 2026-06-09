@@ -2,12 +2,19 @@
 
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, fontProviders } from 'astro/config';
+import vercel from '@astrojs/vercel';
 
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://ugiordan.github.io',
+	output: 'static',
+	adapter: vercel(),
 	integrations: [mdx(), sitemap()],
+	vite: {
+		plugins: [tailwindcss()],
+	},
 	fonts: [
 		{
 			provider: fontProviders.local(),

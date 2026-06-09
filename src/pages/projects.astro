@@ -15,10 +15,10 @@ const grouped = categories.map((cat) => ({
 ---
 
 <Layout title="Projects" description="Projects by Ugo Giordano">
-	{grouped.map((group) => (
+	{grouped.map((group, i) => (
 		<section>
-			<h2>{group.category}</h2>
-			<div class="grid">
+			<h2 class:list={['text-text-muted font-normal uppercase tracking-widest text-xs mb-5', i === 0 ? 'mt-0' : 'mt-10']}>{group.category}</h2>
+			<div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
 				{group.projects.map((project) => (
 					<ProjectCard
 						title={project.data.title}
@@ -32,28 +32,3 @@ const grouped = categories.map((cat) => ({
 		</section>
 	))}
 </Layout>
-
-<style>
-	h2 {
-		color: var(--text-muted);
-		font-weight: 400;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		font-size: 0.7em;
-		margin-top: 2.5em;
-		margin-bottom: 1.25em;
-	}
-	section:first-of-type h2 {
-		margin-top: 0;
-	}
-	.grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.75em;
-	}
-	@media (max-width: 720px) {
-		.grid {
-			grid-template-columns: 1fr;
-		}
-	}
-</style>

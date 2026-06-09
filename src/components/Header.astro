@@ -3,18 +3,21 @@ import HeaderLink from './HeaderLink.astro';
 import ThemeToggle from './ThemeToggle.astro';
 ---
 
-<header>
-	<nav>
-		<h2><a href="/">$ ugiordano</a></h2>
+<header class="m-0 px-6 border-b border-border" style={`background: var(--color-bg);`}>
+	<nav class="flex items-center justify-between max-w-[720px] mx-auto">
+		<h2 class="m-0 text-sm font-bold" style="font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;">
+			<a href="/" class="no-underline text-text hover:text-accent hover:no-underline">$ ugiordano</a>
+		</h2>
 		<div class="internal-links">
 			<HeaderLink href="/">Home</HeaderLink>
 			<HeaderLink href="/projects">Projects</HeaderLink>
 			<HeaderLink href="/blog">Blog</HeaderLink>
 			<HeaderLink href="/about">About</HeaderLink>
 		</div>
-		<div class="right-group">
-			<div class="social-links">
-				<a href="https://github.com/ugiordan" target="_blank" rel="noopener noreferrer">
+		<div class="flex items-center gap-3">
+			<div class="hidden sm:flex items-center gap-2">
+				<a href="https://github.com/ugiordan" target="_blank" rel="noopener noreferrer"
+					class="flex items-center p-0 border-b-0 text-text-muted hover:text-text hover:no-underline">
 					<span class="sr-only">Ugo on GitHub</span>
 					<svg viewBox="0 0 16 16" aria-hidden="true" width="20" height="20"
 						><path
@@ -23,7 +26,8 @@ import ThemeToggle from './ThemeToggle.astro';
 						></path></svg
 					>
 				</a>
-				<a href="https://www.linkedin.com/in/ugogiordano" target="_blank" rel="noopener noreferrer">
+				<a href="https://www.linkedin.com/in/ugogiordano" target="_blank" rel="noopener noreferrer"
+					class="flex items-center p-0 border-b-0 text-text-muted hover:text-text hover:no-underline">
 					<span class="sr-only">Ugo on LinkedIn</span>
 					<svg viewBox="0 0 16 16" aria-hidden="true" width="20" height="20"
 						><path
@@ -37,73 +41,3 @@ import ThemeToggle from './ThemeToggle.astro';
 		</div>
 	</nav>
 </header>
-<style>
-	header {
-		margin: 0;
-		padding: 0 1.5em;
-		background: var(--bg);
-		border-bottom: 1px solid var(--border);
-	}
-	h2 {
-		margin: 0;
-		font-size: 0.9em;
-		font-family: "SF Mono", Monaco, Menlo, Consolas, monospace;
-	}
-	h2 a,
-	h2 a.active {
-		text-decoration: none;
-		color: var(--text);
-	}
-	h2 a:hover {
-		text-decoration: none;
-		color: var(--accent);
-	}
-	nav {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		max-width: 720px;
-		margin: 0 auto;
-	}
-	nav a {
-		padding: 1em 0.5em;
-		color: var(--text-muted);
-		border-bottom: 2px solid transparent;
-		text-decoration: none;
-		transition: color 0.15s ease;
-		font-size: 0.9em;
-	}
-	nav a:hover {
-		color: var(--text);
-		text-decoration: none;
-	}
-	nav a.active {
-		color: var(--accent);
-		border-bottom-color: var(--accent);
-	}
-	.right-group {
-		display: flex;
-		align-items: center;
-		gap: 0.75em;
-	}
-	.social-links {
-		display: flex;
-		align-items: center;
-		gap: 0.5em;
-	}
-	.social-links a {
-		color: var(--text-muted);
-		padding: 0;
-		border-bottom: none;
-		display: flex;
-		align-items: center;
-	}
-	.social-links a:hover {
-		color: var(--text);
-	}
-	@media (max-width: 720px) {
-		.social-links {
-			display: none;
-		}
-	}
-</style>

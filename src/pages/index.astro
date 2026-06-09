@@ -24,28 +24,28 @@ const featuredProjects = (await getCollection('projects'))
 	</head>
 	<body>
 		<Header />
-		<main>
+		<main class="w-[720px] max-w-[calc(100%-2em)] mx-auto py-12 px-4">
 			<!-- Hero -->
-			<section class="hero">
-				<h1>Ugo Giordano</h1>
-				<p class="subtitle">Senior Software Engineer, Ph.D.</p>
-				<p class="intro">
+			<section class="pb-4">
+				<h1 class="text-3xl mb-1">Ugo Giordano</h1>
+				<p class="text-accent text-base mb-4 font-medium">Senior Software Engineer, Ph.D.</p>
+				<p class="text-text-secondary text-sm leading-relaxed max-w-[600px] mb-6">
 					Platform security engineer at Red Hat, working on OpenShift AI.
 					I find vulnerabilities in Kubernetes operators, build libraries to fix them structurally,
 					and create AI-powered tooling for security analysis at scale.
 					Previously at Nokia Bell Labs researching SDN reliability.
 				</p>
-				<div class="hero-links">
-					<a href="/cv.pdf" class="btn btn-primary">Download CV</a>
-					<a href="https://github.com/ugiordan" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">GitHub</a>
-					<a href="https://www.linkedin.com/in/ugogiordano" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+				<div class="flex gap-3">
+					<a href="/cv.pdf" class="py-1.5 px-4 rounded-md text-sm no-underline transition-opacity duration-150 hover:opacity-85 hover:no-underline bg-accent text-bg">Download CV</a>
+					<a href="https://github.com/ugiordan" class="py-1.5 px-4 rounded-md text-sm no-underline transition-opacity duration-150 hover:opacity-85 hover:no-underline bg-bg-secondary text-text-secondary border border-border" target="_blank" rel="noopener noreferrer">GitHub</a>
+					<a href="https://www.linkedin.com/in/ugogiordano" class="py-1.5 px-4 rounded-md text-sm no-underline transition-opacity duration-150 hover:opacity-85 hover:no-underline bg-bg-secondary text-text-secondary border border-border" target="_blank" rel="noopener noreferrer">LinkedIn</a>
 				</div>
 			</section>
 
 			<!-- Featured Projects -->
 			<section>
-				<h2>Featured Projects</h2>
-				<div class="projects-grid">
+				<h2 class="text-text-muted font-normal mt-12 mb-5 uppercase tracking-widest text-xs">Featured Projects</h2>
+				<div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
 					{featuredProjects.map((project) => (
 						<ProjectCard
 							title={project.data.title}
@@ -56,21 +56,23 @@ const featuredProjects = (await getCollection('projects'))
 						/>
 					))}
 				</div>
-				<div class="view-all">
-					<a href="/projects">View all projects &rarr;</a>
+				<div class="text-center mt-4">
+					<a href="/projects" class="text-accent text-sm no-underline hover:text-accent-hover hover:underline">View all projects &rarr;</a>
 				</div>
 			</section>
 
 			<!-- Latest Posts -->
 			{posts.length > 0 && <section>
-				<h2>Latest Posts</h2>
-				<ul class="posts">
+				<h2 class="text-text-muted font-normal mt-12 mb-5 uppercase tracking-widest text-xs">Latest Posts</h2>
+				<ul class="list-none p-0 flex flex-col gap-3">
 					{posts.map((post) => (
 						<li>
-							<a href={`/blog/${post.id}/`}>
-								<span class="date"><FormattedDate date={post.data.pubDate} /></span>
-								<h4>{post.data.title}</h4>
-								<p class="description">{post.data.description}</p>
+							<a href={`/blog/${post.id}/`} class="no-underline block p-5 rounded-lg bg-bg-secondary border border-border transition-colors duration-150 hover:border-border-hover hover:no-underline group">
+								<span class="text-text-muted text-xs" style="font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;">
+									<FormattedDate date={post.data.pubDate} />
+								</span>
+								<h4 class="my-1 text-text text-base transition-colors duration-150 group-hover:text-accent">{post.data.title}</h4>
+								<p class="m-0 text-text-secondary text-sm leading-normal">{post.data.description}</p>
 							</a>
 						</li>
 					))}
@@ -80,130 +82,3 @@ const featuredProjects = (await getCollection('projects'))
 		<Footer />
 	</body>
 </html>
-
-<style>
-	/* Hero */
-	.hero {
-		padding-bottom: 1em;
-	}
-	.hero h1 {
-		font-size: 1.8em;
-		margin-bottom: 0.25em;
-	}
-	.subtitle {
-		color: var(--accent);
-		font-size: 1em;
-		margin-bottom: 1em;
-		font-weight: 500;
-	}
-	.intro {
-		color: var(--text-secondary);
-		font-size: 0.9em;
-		line-height: 1.6;
-		max-width: 600px;
-		margin-bottom: 1.5em;
-	}
-	.hero-links {
-		display: flex;
-		gap: 0.75em;
-	}
-	.btn {
-		padding: 0.4em 1em;
-		border-radius: 6px;
-		font-size: 0.8em;
-		text-decoration: none;
-		transition: opacity 0.15s ease;
-	}
-	.btn:hover {
-		opacity: 0.85;
-		text-decoration: none;
-	}
-	.btn-primary {
-		background: var(--accent);
-		color: var(--bg);
-	}
-	.btn-secondary {
-		background: var(--bg-secondary);
-		color: var(--text-secondary);
-		border: 1px solid var(--border);
-	}
-
-	/* Section headers */
-	h2 {
-		color: var(--text-muted);
-		font-weight: 400;
-		margin-top: 3em;
-		margin-bottom: 1.25em;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		font-size: 0.7em;
-	}
-
-	/* Projects grid */
-	.projects-grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.75em;
-	}
-	.view-all {
-		text-align: center;
-		margin-top: 1em;
-	}
-	.view-all a {
-		color: var(--accent);
-		font-size: 0.85em;
-		text-decoration: none;
-	}
-	.view-all a:hover {
-		color: var(--accent-hover);
-		text-decoration: underline;
-	}
-
-	/* Posts */
-	.posts {
-		list-style: none;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75em;
-	}
-	.posts li a {
-		text-decoration: none;
-		display: block;
-		padding: 1.25em;
-		border-radius: 8px;
-		background: var(--bg-secondary);
-		border: 1px solid var(--border);
-		transition: border-color 0.15s ease;
-	}
-	.posts li a:hover {
-		border-color: var(--border-hover);
-		text-decoration: none;
-	}
-	.posts li a:hover h4 {
-		color: var(--accent);
-	}
-	.posts li a h4 {
-		margin: 0.25em 0;
-		color: var(--text);
-		font-size: 1em;
-		transition: color 0.15s ease;
-	}
-	.date {
-		color: var(--text-muted);
-		font-size: 0.75em;
-		font-family: "SF Mono", Monaco, Menlo, Consolas, monospace;
-	}
-	.description {
-		margin: 0;
-		color: var(--text-secondary);
-		font-size: 0.85em;
-		line-height: 1.5;
-	}
-
-	@media (max-width: 720px) {
-		.projects-grid {
-			grid-template-columns: 1fr;
-		}
-	}
-</style>
