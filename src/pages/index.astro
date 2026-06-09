@@ -8,6 +8,7 @@ import { SITE_TITLE } from '../consts';
 import { getCollection } from 'astro:content';
 
 const posts = (await getCollection('blog'))
+	.filter((p) => !p.data.draft)
 	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
 	.slice(0, 3);
 
