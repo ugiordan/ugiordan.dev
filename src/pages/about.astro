@@ -8,37 +8,94 @@ import Layout from '../layouts/Page.astro';
 >
 	<p>
 		I'm Ugo Giordano, a Senior Software Engineer at Red Hat on the OpenShift AI
-		platform team, where I contribute to the Kubernetes operators that power the
-		platform and focus on hardening its security posture. I work across 20+
-		repositories, building Go libraries, admission webhooks, and CI/CD automation.
-		Recent work includes remediating a platform-wide RBAC misconfiguration across
-		22 operators and automating security assessments across 135+ repositories
-		using AI-powered analysis.
+		platform team. I contribute to the Kubernetes operators that power the platform
+		and focus on hardening its security posture. I work across 20+ repositories,
+		building Go libraries, admission webhooks, and CI/CD automation. I'm particularly
+		interested in how AI integrates into real developer tooling, not as a chatbot
+		but as an agent that can actually do things.
 	</p>
+
+	<h2 class="text-text-muted font-normal mt-12 mb-5 uppercase tracking-widest text-xs">What I'm working on</h2>
+	<ul>
+		<li>Remediating a platform-wide RBAC misconfiguration across 22 operators</li>
+		<li>Building a chaos engineering framework for Kubernetes operators (<a href="https://github.com/opendatahub-io/operator-chaos" target="_blank" rel="noopener noreferrer">operator-chaos</a>)</li>
+		<li>Automating security assessments across 135+ repositories using AI-powered analysis</li>
+		<li>Contributing upstream fixes to controller-runtime operator patterns (<a href="/blog/protect-operator-from-oomkill/">OOMKill vulnerability</a>)</li>
+	</ul>
+
+	<h2 class="text-text-muted font-normal mt-12 mb-5 uppercase tracking-widest text-xs">Background</h2>
+	<div class="flex flex-col gap-4">
+		<div class="flex gap-4 items-start">
+			<span class="text-text-muted text-xs whitespace-nowrap mt-1" style="font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;">2024–now</span>
+			<div>
+				<strong>Senior Software Engineer</strong> · Red Hat, OpenShift AI Platform
+				<p class="text-sm mt-1">Security hardening, operator development, DevSecOps automation.</p>
+			</div>
+		</div>
+		<div class="flex gap-4 items-start">
+			<span class="text-text-muted text-xs whitespace-nowrap mt-1" style="font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;">2021–2024</span>
+			<div>
+				<strong>Software Maintenance Engineer</strong> · Red Hat
+				<p class="text-sm mt-1">Production escalations for enterprise OpenShift clients in financial services and telecom.</p>
+			</div>
+		</div>
+		<div class="flex gap-4 items-start">
+			<span class="text-text-muted text-xs whitespace-nowrap mt-1" style="font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;">2017–2021</span>
+			<div>
+				<strong>Project Manager & Senior Software Engineer</strong> · RisLab
+				<p class="text-sm mt-1">Cyber-physical protection systems correlating PSIM and SIEM events for critical infrastructure.</p>
+			</div>
+		</div>
+		<div class="flex gap-4 items-start">
+			<span class="text-text-muted text-xs whitespace-nowrap mt-1" style="font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;">2016–2017</span>
+			<div>
+				<strong>Ph.D. Intern, Member of Technical Staff</strong> · Nokia Bell Labs, New Jersey
+				<p class="text-sm mt-1">Cloud benchmarking frameworks for NetUNIX, a carrier-grade network operating system.</p>
+			</div>
+		</div>
+	</div>
+
+	<h2 class="text-text-muted font-normal mt-12 mb-5 uppercase tracking-widest text-xs">Education</h2>
+	<div class="flex flex-col gap-4">
+		<div class="flex gap-4 items-start">
+			<span class="text-text-muted text-xs whitespace-nowrap mt-1" style="font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;">2014–2019</span>
+			<div>
+				<strong>Ph.D. in Software Reliability Engineering</strong> · University of Naples Federico II
+				<p class="text-sm mt-1">SDN control plane reliability, fault injection frameworks, NFV overload control.</p>
+			</div>
+		</div>
+		<div class="flex gap-4 items-start">
+			<span class="text-text-muted text-xs whitespace-nowrap mt-1" style="font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;">2003</span>
+			<div>
+				<strong>International Olympiad in Informatics (IOI)</strong> · alumnus
+			</div>
+		</div>
+	</div>
+
+	<h2 class="text-text-muted font-normal mt-12 mb-5 uppercase tracking-widest text-xs">Certifications</h2>
+	<div class="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+		<span class="py-1.5 px-3 rounded-md text-sm bg-bg-secondary border border-border">Red Hat Certified Architect (RHCA)</span>
+		<span class="py-1.5 px-3 rounded-md text-sm bg-bg-secondary border border-border">Red Hat Certified Engineer (RHCE)</span>
+		<span class="py-1.5 px-3 rounded-md text-sm bg-bg-secondary border border-border">RH Specialist in OCP Data Foundation</span>
+		<span class="py-1.5 px-3 rounded-md text-sm bg-bg-secondary border border-border">RH Specialist in OCP Virtualization</span>
+		<span class="py-1.5 px-3 rounded-md text-sm bg-bg-secondary border border-border">RH Specialist in OCP Automation</span>
+		<span class="py-1.5 px-3 rounded-md text-sm bg-bg-secondary border border-border">RH Certified OCP App Developer</span>
+		<span class="py-1.5 px-3 rounded-md text-sm bg-bg-secondary border border-border">RH Specialist in Containers</span>
+		<span class="py-1.5 px-3 rounded-md text-sm bg-bg-secondary border border-border">RHCSA</span>
+	</div>
+
+	<h2 class="text-text-muted font-normal mt-12 mb-5 uppercase tracking-widest text-xs">Publications</h2>
+	<ul>
+		<li><a href="https://developers.redhat.com/articles/2026/06/01/protect-your-kubernetes-operator-oomkill" target="_blank" rel="noopener noreferrer">Protect your Kubernetes Operator from OOMKill</a> · Red Hat Developer, 2026</li>
+		<li>SDN control plane performance testing and benchmarking · Nokia Bell Labs / IEEE, 2017</li>
+		<li>Static analysis prioritization for software verification and validation · CINI / Finmeccanica, 2014</li>
+	</ul>
+
+	<h2 class="text-text-muted font-normal mt-12 mb-5 uppercase tracking-widest text-xs">Links</h2>
 	<p>
-		I hold a Ph.D. in Software Reliability Engineering from the University of
-		Naples Federico II, where I researched SDN control plane reliability. During
-		that work I contributed to Nokia Bell Labs' NetUnix project and co-authored
-		papers on SDN control plane performance testing and static analysis
-		prioritization.
-	</p>
-	<p>
-		At Red Hat I work across the Kubernetes and AI/ML stack. I'm a Red Hat
-		Certified Architect (RHCA), Certified Engineer (RHCE), and hold eight
-		Red Hat certifications in total. My day-to-day involves Go, Python,
-		TypeScript and the cloud-native toolchain. Beyond security, I spend a lot
-		of time building tools that make engineering workflows faster and less
-		manual. I'm particularly interested in how AI integrates into real developer
-		tooling, not as a chatbot but as an agent that can actually do things.
-	</p>
-	<p>
-		Before the PhD I competed in the International Olympiad in Informatics. These
-		days I care about security, reliability, testing and building things that
-		actually work in production.
-	</p>
-	<p>
-		Find me on <a href="https://github.com/ugiordan" target="_blank" rel="noopener noreferrer">GitHub</a> and
-		<a href="https://www.linkedin.com/in/ugogiordano" target="_blank" rel="noopener noreferrer">LinkedIn</a>,
-		or <a href="/cv.pdf">download my CV</a>.
+		<a href="https://github.com/ugiordan" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+		<a href="https://www.linkedin.com/in/ugogiordano" target="_blank" rel="noopener noreferrer">LinkedIn</a> ·
+		<a href="https://rhtapps.redhat.com/verify?certId=210-150-884" target="_blank" rel="noopener noreferrer">Red Hat Certifications</a> ·
+		<a href="/cv.pdf">Download CV</a>
 	</p>
 </Layout>
