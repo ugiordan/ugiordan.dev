@@ -103,3 +103,15 @@
 	ul, ol { @apply pl-6; }
 	li { @apply mb-1; }
 }
+
+/* Shiki dual-theme: dark by default, light when .light class is active */
+.astro-code,
+.astro-code span {
+	color: var(--shiki-dark) !important;
+	background-color: var(--shiki-dark-bg) !important;
+}
+html.light .astro-code,
+html.light .astro-code span {
+	color: var(--shiki-light) !important;
+	background-color: var(--shiki-light-bg) !important;
+}
