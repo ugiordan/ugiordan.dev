@@ -8,7 +8,7 @@ import vercel from '@astrojs/vercel';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://ugiordan.github.io',
+	site: 'https://ugiordan.dev',
 	output: 'static',
 	adapter: vercel(),
 	integrations: [mdx(), sitemap()],
