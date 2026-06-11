@@ -3,8 +3,8 @@ title: PipeClear
 description: Two-layer ML pipeline validation for OpenShift AI. Catches broken pipelines at compile time (Python KFP plugin) and at admission time (Go webhook). Presented at the KFP Community Call.
 tags: [Python, Go, Kubernetes]
 category: Pipeline Validation
-featured: true
-order: 3
+featured: false
+order: 6
 links:
   - label: GitHub
     url: https://github.com/ugiordan/pipeclear

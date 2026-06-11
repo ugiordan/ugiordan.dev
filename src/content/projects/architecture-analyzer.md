@@ -1,14 +1,14 @@
 ---
 title: Architecture Analyzer
-description: Static analysis tool for Kubernetes and OpenShift architecture. Generates dependency graphs, detects anti-patterns, and maps RBAC permission flows.
-tags: [Python, Kubernetes]
-category: Developer Tools
-featured: false
-order: 11
+description: Static analysis tool that extracts CRDs, RBAC rules, security contexts, and network policies from Kubernetes operator source code. Builds multi-language code property graphs (Go, Python, TS, Rust) with taint analysis.
+tags: [Go, Kubernetes, Security]
+category: Security & Platform
+featured: true
+order: 3
 links:
   - label: GitHub
     url: https://github.com/ugiordan/architecture-analyzer
 visibility: public
 ---
 
-Static analysis tool for Kubernetes and OpenShift architecture. Generates dependency graphs across controllers, detects architectural anti-patterns, and maps RBAC permission flows to identify over-privileged components.
+Static analysis tool that extracts architecture data from Kubernetes operator repos. Builds multi-language code property graphs (Go, Python, TypeScript, Rust) and runs security/architecture queries with taint analysis. Enables automated cross-component security audits across the platform.
