@@ -4,7 +4,7 @@ description: 'How an unfiltered informer cache lets any user with edit permissio
 pubDate: 'Jun 01 2026'
 ---
 
-import { Image } from 'astro:assets';
+import Figure from '../../components/Figure.astro';
 import informerUnfiltered from '../../assets/blog/oomkill/informer-unfiltered.jpg';
 import oomkillAttackFlow from '../../assets/blog/oomkill/oomkill-attack-flow.jpg';
 import fixSteps from '../../assets/blog/oomkill/fix-steps.jpg';
@@ -28,7 +28,7 @@ Every object the informer sees gets deserialized into a full Go struct and store
 
 The problem is the word "every." If you set up an informer without filters, it caches every single object of that type. Every ConfigMap. Every Secret. Every namespace. All in memory.
 
-<Image src={informerUnfiltered} alt="Unfiltered informer cache: the informer watches every ConfigMap cluster-wide, deserializes each one, and stores them all in memory regardless of whether the operator needs them" />
+<Figure src={informerUnfiltered} alt="Unfiltered informer cache" caption="An unfiltered informer watches every ConfigMap cluster-wide, deserializing each one into memory regardless of whether the operator needs it" number={1} />
 
 The informer does a full `LIST` at startup, pulls every matching object into memory, then maintains that cache via a `WATCH` stream. Without a label selector or namespace restriction, "matching" means "all of them." On a production cluster with thousands of ConfigMaps across hundreds of namespaces, that's a lot of memory for objects your operator will never look at.
 
@@ -59,7 +59,7 @@ This is a bad default in controller-runtime. An empty `cache.ByObject{}` looks h
 
 No special permissions are needed. Any user with the standard `edit` ClusterRole, which is the default for developers and data scientists in multi-tenant clusters, can create ConfigMaps in their assigned namespaces. Each ConfigMap can be up to 1MB (the Kubernetes API server enforces this limit).
 
-<Image src={oomkillAttackFlow} alt="OOMKill attack flow: a regular user creates hundreds of large ConfigMaps, the unfiltered informer caches them all, memory exceeds the pod limit, and the operator enters CrashLoopBackOff" />
+<Figure src={oomkillAttackFlow} alt="OOMKill attack flow" caption="A regular user floods large ConfigMaps, the unfiltered informer caches them all, memory exceeds the pod limit, and the operator enters CrashLoopBackOff" number={2} />
 
 The attack is straightforward. Generate a 900KB payload:
 
@@ -168,7 +168,7 @@ The correct fix is to eliminate the unfiltered cache entirely.
 
 Fixing this properly requires four steps. Each one matters, and skipping any of them creates either a regression or an upgrade failure.
 
-<Image src={fixSteps} alt="Four steps to fix the unfiltered cache: filter the cache with a label selector, label your own ConfigMaps, handle the upgrade path with merge patch, and propagate labels during updates" />
+<Figure src={fixSteps} alt="Fix steps overview" caption="Four phases of the fix: filter the cache, label your own ConfigMaps, handle the upgrade path, and propagate labels during updates" number={3} />
 
 ### Step 1: Filter the cache
 
@@ -186,7 +186,7 @@ Add a label selector to restrict what the informer caches:
 },
 ```
 
-<Image src={informerFiltered} alt="Filtered informer cache: with a label selector, the informer only watches ConfigMaps carrying the operator's label, ignoring everything else" />
+<Figure src={informerFiltered} alt="Filtered informer cache" caption="With a label selector, only operator-owned ConfigMaps enter the cache. Everything else is ignored." number={4} />
 
 Now the informer's `LIST` call includes a `labelSelector` parameter. The API server only returns ConfigMaps with that label. Everything else is invisible to the operator. A user flooding the cluster with unlabeled ConfigMaps has zero impact on the operator's memory footprint.
 
@@ -217,7 +217,7 @@ This is the step most people forget, and it's the one that causes production inc
 
 Pre-existing ConfigMaps from the old operator version don't have the label. After the upgrade, the filtered cache can't see them. So `client.Get()` returns `NotFound` (the cache has no entry for the unlabeled object), but `client.Create()` returns `AlreadyExists` (the object exists in the API server, just not in the cache).
 
-<Image src={upgradePath} alt="Upgrade path problem: after filtering the cache, old ConfigMaps without the label are invisible to the cache but still exist in the API server, causing Get-NotFound then Create-AlreadyExists loops" />
+<Figure src={upgradePath} alt="Upgrade path flow" caption="Pre-existing ConfigMaps without the label are invisible to the filtered cache but still exist in the API server, requiring a merge patch to resolve" number={5} />
 
 You can't use `client.Update()` to fix this because `Update` requires a `resourceVersion`, which you get from `client.Get()`, which returns `NotFound` because the cache can't see the object. Catch-22.
 
@@ -261,7 +261,7 @@ This is defensive coding. Even if your current update logic preserves labels, fu
 
 I validated both the vulnerability and the fix on an OpenShift cluster. The test keeps the 700 flooded ConfigMaps in place between phases, so the patched operator has to survive the same hostile environment that crashed the unpatched version.
 
-<Image src={clusterTestFlow} alt="Cluster test flow: flood the cluster with 700 large ConfigMaps, observe the unpatched operator OOMKill, deploy the patched operator into the same hostile environment, confirm it starts cleanly" />
+<Figure src={clusterTestFlow} alt="Cluster test flow" caption="Validation lifecycle: flood ConfigMaps, observe OOMKill on the unpatched operator, deploy the fix into the same hostile environment, confirm stable memory" number={6} />
 
 | Metric | Unpatched | Patched |
 |--------|-----------|---------|

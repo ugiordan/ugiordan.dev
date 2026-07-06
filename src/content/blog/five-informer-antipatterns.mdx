@@ -4,7 +4,7 @@ description: 'The Spark Operator OOMKill was not unique. Here are 5 anti-pattern
 pubDate: 'Jul 06 2026'
 ---
 
-import { Image } from 'astro:assets';
+import Figure from '../../components/Figure.astro';
 import predicatesFilter from '../../assets/blog/antipatterns/predicates-filter.png';
 import disableforPaths from '../../assets/blog/antipatterns/disablefor-paths.png';
 import clientGetFlow from '../../assets/blog/antipatterns/client-get-flow.png';
@@ -41,7 +41,7 @@ builder.Watches(&corev1.ConfigMap{},
 )
 ```
 
-<Image src={predicatesFilter} alt="Predicates sit between the informer and the work queue. The informer still LIST+WATCHes every ConfigMap cluster-wide, deserializes all of them, and stores them in memory. The predicate only filters which events reach the reconciler." />
+<Figure src={predicatesFilter} alt="Predicates filter events, not the informer cache" caption="Predicates sit between the informer and the work queue. The informer still caches everything. The predicate only filters which events reach the reconciler." number={1} />
 
 The intent: only watch a single ConfigMap named `my-operator-config`. The predicate filters everything else out. And it does filter, at reconciliation time. Events for other ConfigMaps won't trigger your reconciler.
 
@@ -101,7 +101,7 @@ func (r *MyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 ```
 
-<Image src={disableforPaths} alt="DisableFor only affects client.Get() and client.List() calls. Owns() and Watches() create independent informers through the controller builder, completely bypassing DisableFor." />
+<Figure src={disableforPaths} alt="DisableFor affects client reads, not controller builder informers" caption="DisableFor only affects client.Get() and client.List(). Controller builder calls (Owns, Watches) create independent informers on a completely separate code path." number={2} />
 
 `Owns()` registers a ConfigMap informer through the controller builder. This is a completely independent code path from the client cache. The informer starts, watches every ConfigMap cluster-wide, and caches all of them. `DisableFor` has zero effect on it.
 
@@ -144,7 +144,7 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 }
 ```
 
-<Image src={clientGetFlow} alt="When client.Get() is called for a type not in ByObject, controller-runtime silently creates a cluster-wide informer on the first access. The informer LISTs every object of that type, caches them all, then returns the single one you asked for." />
+<Figure src={clientGetFlow} alt="Implicit informer creation from client.Get()" caption="When client.Get() is called for a type not in ByObject, controller-runtime silently creates a cluster-wide informer. It LISTs every object of that type, caches them all, then returns the one you asked for." number={3} />
 
 If `corev1.Secret` is not listed in your `cache.Options.ByObject`, here's what happens the first time this runs:
 
@@ -245,13 +245,13 @@ controller-runtime maintains three completely separate caches:
 - **Unstructured cache**: `map[string]interface{}` representations (`unstructured.Unstructured`)
 - **Partial/Metadata cache**: only `ObjectMeta` (name, namespace, labels, annotations)
 
-<Image src={typedUnstructuredCaches} alt="Three separate caches in controller-runtime: typed, unstructured, and metadata. They don't share entries. A ConfigMap cached as a typed corev1.ConfigMap is invisible to a client.Get requesting an unstructured.Unstructured." />
+<Figure src={typedUnstructuredCaches} alt="Three separate cache paths" caption="Typed, unstructured, and metadata caches are completely separate. A ConfigMap cached as typed corev1.ConfigMap is invisible to an unstructured Get." number={4} />
 
 These caches don't share entries. A ConfigMap cached as a typed `corev1.ConfigMap` is invisible to a `client.Get()` that requests an `unstructured.Unstructured`. They're completely independent data stores, each with their own informers.
 
 This creates a subtle memory waste scenario. If your controller uses `Watches(&corev1.ConfigMap{})` for reconciliation triggers but reads ConfigMaps in your reconciler using an unstructured `Get()`, the typed cache pays the full memory cost of caching every matching ConfigMap, but none of those cached objects ever serve a read. The unstructured `Get()` either hits a separate unstructured cache (creating a second informer and doubling memory usage) or goes to the API server if the unstructured type isn't cached.
 
-<Image src={memoryLayout} alt="Memory layout when watch and read paths use different representations. The typed cache stores full Go structs that never serve reads, while the unstructured cache may create a second informer for the same type." />
+<Figure src={memoryLayout} alt="Memory layout comparison" caption="Unstructured maps have three levels of pointer indirection per field. Typed structs use direct field access. At scale, the per-field overhead accumulates." number={5} />
 
 ### The fix
 
@@ -271,7 +271,7 @@ builder.WatchesMetadata(&corev1.ConfigMap{},
 
 Here's the key insight that ties all five anti-patterns together. There are two independent code paths that create informers:
 
-<Image src={twoCodePaths} alt="Two code paths that create informers: (1) controller builder registrations via For(), Owns(), and Watches(), and (2) implicit informers from client.Get() and client.List() calls when a type isn't in ByObject." />
+<Figure src={twoCodePaths} alt="Two code paths that create unfiltered informers" caption="Controller builder (For, Owns, Watches) and client reads (client.Get, client.List) are independent code paths. Fixing one does not fix the other." number={6} />
 
 **Code path 1: Controller builder registrations.** `For()`, `Owns()`, and `Watches()` in your `SetupWithManager()` function. These are visible in code review. They create informers through the controller builder.
 
