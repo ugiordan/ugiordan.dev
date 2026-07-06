@@ -215,4 +215,4 @@ The root cause is a bad default: `ByObject` caches everything when no selector i
 
 The upstream fix for the Spark Operator is at [kubeflow/spark-operator#2878](https://github.com/kubeflow/spark-operator/pull/2878). The full article with detailed reproduction steps is on [Red Hat Developer](https://developers.redhat.com/articles/2026/06/01/protect-your-kubernetes-operator-oomkill).
 
-I'm writing a follow-up post covering 5 anti-patterns that cause this vulnerability, including code paths that are completely invisible during code review, like `client.Get()` silently creating cluster-wide informers. Stay tuned.
+The follow-up post covering [5 anti-patterns that cause this vulnerability](/blog/five-informer-antipatterns/) is now live, including code paths that are completely invisible during code review, like `client.Get()` silently creating cluster-wide informers. Also published on [Red Hat Developer](https://developers.redhat.com/articles/2026/07/06/5-anti-patterns-cause-kubernetes-operator-vulnerabilities).

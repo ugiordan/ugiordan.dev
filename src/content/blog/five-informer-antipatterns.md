@@ -1,8 +1,7 @@
 ---
 title: 'Why your operator caches everything in the cluster (5 anti-patterns)'
 description: 'The Spark Operator OOMKill was not unique. Here are 5 anti-patterns that cause unfiltered informer caches in controller-runtime operators, including code paths invisible during review.'
-pubDate: 'Jun 09 2026'
-draft: true
+pubDate: 'Jul 06 2026'
 ---
 
 In the [previous post](/blog/protect-operator-from-oomkill/), I showed how an unfiltered ConfigMap cache took down the Kubeflow Spark Operator. We fixed that one and moved on. Then we audited other controller-runtime operators and found the same pattern in the majority of them. Not just ConfigMaps: Secrets, Services, and other high-volume resource types. The Kubeflow Training Operator was independently reported by another engineer for the same issue ([kubeflow/trainer#3374](https://github.com/kubeflow/trainer/issues/3374)), confirming this is systemic.
@@ -176,4 +175,4 @@ Before you ship an operator, check these:
 
 The pattern is systemic because `ByObject` defaults to "cache everything" when no selector is specified. Audit your operators.
 
-*This is a companion to the [Red Hat Developer article](https://developers.redhat.com/articles/2026/06/01/protect-your-kubernetes-operator-oomkill) on the original Spark Operator vulnerability and fix.*
+*This is a companion to the Red Hat Developer articles: [Part 1: Protect your Kubernetes Operator from OOMKill](https://developers.redhat.com/articles/2026/06/01/protect-your-kubernetes-operator-oomkill) and [Part 2: 5 anti-patterns that cause Kubernetes operator vulnerabilities](https://developers.redhat.com/articles/2026/07/06/5-anti-patterns-cause-kubernetes-operator-vulnerabilities).*
