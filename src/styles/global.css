@@ -70,7 +70,7 @@
 		color: var(--color-text);
 	}
 
-	img { @apply max-w-full h-auto rounded-lg; }
+	img { @apply max-w-full h-auto rounded-lg mx-auto block; }
 
 	code {
 		@apply py-0.5 px-1.5 rounded text-sm;
