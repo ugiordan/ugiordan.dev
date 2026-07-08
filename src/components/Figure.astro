@@ -12,8 +12,29 @@ const { src, alt, caption, number } = Astro.props;
 ---
 
 <figure class="my-8">
-	<Image src={src} alt={alt} class="rounded-lg mx-auto block" />
+	<Image src={src} alt={alt} class="rounded-lg mx-auto block cursor-pointer hover:opacity-90 transition-opacity duration-150 lightbox-img" />
 	<figcaption class="text-center text-sm text-text-muted mt-3 italic">
 		{number ? `Figure ${number}: ${caption}` : caption}
 	</figcaption>
 </figure>
+
+<!-- Lightbox overlay -->
+<div class="lightbox-overlay hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 cursor-pointer" onclick="this.classList.add('hidden')">
+	<img class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg" />
+</div>
+
+<script is:inline>
+	(function () {
+		document.querySelectorAll('.lightbox-img').forEach(function (img) {
+			if (img.dataset.lightboxBound) return;
+			img.dataset.lightboxBound = 'true';
+			img.addEventListener('click', function () {
+				var overlay = img.closest('figure').nextElementSibling;
+				var fullImg = overlay.querySelector('img');
+				fullImg.src = img.src;
+				fullImg.alt = img.alt;
+				overlay.classList.remove('hidden');
+			});
+		});
+	})();
+</script>
