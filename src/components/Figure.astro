@@ -19,8 +19,8 @@ const { src, alt, caption, number } = Astro.props;
 </figure>
 
 <!-- Lightbox overlay -->
-<div class="lightbox-overlay hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 cursor-pointer" onclick="this.classList.add('hidden')">
-	<img class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg" />
+<div class="lightbox-overlay hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 cursor-zoom-out overflow-auto">
+	<img class="lightbox-full max-w-none transition-transform duration-200 rounded-lg" style="transform-origin: center center;" />
 </div>
 
 <script is:inline>
@@ -30,11 +30,56 @@ const { src, alt, caption, number } = Astro.props;
 			img.dataset.lightboxBound = 'true';
 			img.addEventListener('click', function () {
 				var overlay = img.closest('figure').nextElementSibling;
-				var fullImg = overlay.querySelector('img');
+				var fullImg = overlay.querySelector('.lightbox-full');
 				fullImg.src = img.src;
 				fullImg.alt = img.alt;
+				fullImg.style.transform = 'scale(1)';
+				fullImg.dataset.zoom = '1';
 				overlay.classList.remove('hidden');
 			});
+		});
+
+		document.querySelectorAll('.lightbox-overlay').forEach(function (overlay) {
+			if (overlay.dataset.lightboxBound) return;
+			overlay.dataset.lightboxBound = 'true';
+			var fullImg = overlay.querySelector('.lightbox-full');
+
+			overlay.addEventListener('click', function (e) {
+				if (e.target === fullImg) return;
+				overlay.classList.add('hidden');
+			});
+
+			fullImg.addEventListener('click', function (e) {
+				e.stopPropagation();
+				var zoom = parseFloat(fullImg.dataset.zoom || '1');
+				if (zoom < 2) {
+					fullImg.style.transform = 'scale(2)';
+					fullImg.dataset.zoom = '2';
+					fullImg.style.cursor = 'zoom-out';
+				} else {
+					fullImg.style.transform = 'scale(1)';
+					fullImg.dataset.zoom = '1';
+					fullImg.style.cursor = 'zoom-in';
+				}
+			});
+
+			fullImg.addEventListener('wheel', function (e) {
+				e.preventDefault();
+				var zoom = parseFloat(fullImg.dataset.zoom || '1');
+				var delta = e.deltaY > 0 ? -0.2 : 0.2;
+				zoom = Math.min(Math.max(zoom + delta, 0.5), 5);
+				fullImg.style.transform = 'scale(' + zoom + ')';
+				fullImg.dataset.zoom = zoom.toString();
+				fullImg.style.cursor = zoom > 1 ? 'zoom-out' : 'zoom-in';
+			});
+		});
+
+		document.addEventListener('keydown', function (e) {
+			if (e.key === 'Escape') {
+				document.querySelectorAll('.lightbox-overlay').forEach(function (o) {
+					o.classList.add('hidden');
+				});
+			}
 		});
 	})();
 </script>
