@@ -1,8 +1,16 @@
-# ugiordan.github.io
+# ugiordan.dev
 
-Personal tech blog of Ugo Giordano. Built with [Astro](https://astro.build/).
+Personal blog and portfolio. Built with [Astro](https://astro.build/) + [Tailwind CSS v4](https://tailwindcss.com/), deployed on [Vercel](https://vercel.com/).
 
-Live at [ugiordan.github.io](https://ugiordan.github.io).
+Live at [ugiordan.dev](https://ugiordan.dev).
+
+## Stack
+
+- **Framework:** Astro 6 with MDX
+- **Styling:** Tailwind CSS v4 (Vite plugin)
+- **Syntax highlighting:** Shiki with github-dark theme
+- **Hosting:** Vercel (static output)
+- **Domain:** ugiordan.dev
 
 ## Local development
 
@@ -23,4 +31,4 @@ Output goes to `./dist/`.
 
 ## Deployment
 
-Deployed automatically via GitHub Actions to GitHub Pages on push to `main`.
+Auto-deploys on push to `main` via Vercel.
