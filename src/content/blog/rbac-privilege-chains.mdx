@@ -1,0 +1,265 @@
+---
+title: 'Why your RBAC linter misses privilege escalation chains'
+description: 'kube-linter catches wildcards and cluster-admin bindings. But it cannot detect indirect privilege escalation through binding chains. Here is what it misses and how kube-chainsaw fixes it.'
+pubDate: 'Jul 07 2026'
+---
+
+import Figure from '../../components/Figure.astro';
+import escalationChain from '../../assets/blog/kube-chainsaw/privilege-escalation-chain.png';
+import analysisPipeline from '../../assets/blog/kube-chainsaw/analysis-pipeline.png';
+
+Tools like kube-linter are good at catching the obvious stuff: wildcard verbs, `cluster-admin` bindings, excessive Secret access. But there's a vulnerability class they fundamentally cannot detect: indirect privilege escalation through binding chains.
+
+The problem is architectural. Per-object linters check each Kubernetes resource in isolation. They never correlate a Deployment's ServiceAccount with the ClusterRoleBinding that grants it RBAC modification capabilities. The escalation path is invisible because it spans multiple manifests.
+
+I built [kube-chainsaw](https://github.com/ugiordan/kube-chainsaw) to fix this. It builds permission graphs from static manifests and traces privilege chains that per-object linters miss.
+
+## The blind spot
+
+Consider a typical operator RBAC setup. Three manifests, nothing unusual:
+
+```yaml
+# ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operator-manager-role
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterrolebindings", "clusterroles"]
+    verbs: ["create", "patch", "update"]
+```
+
+```yaml
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: operator-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: operator-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: operator-sa
+    namespace: operator-system
+```
+
+```yaml
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operator-controller
+  namespace: operator-system
+spec:
+  selector:
+    matchLabels:
+      app: operator
+  template:
+    spec:
+      serviceAccountName: operator-sa
+      containers:
+        - name: manager
+          image: operator:latest
+```
+
+No wildcards. No `cluster-admin` binding. kube-linter reports nothing alarming. Maybe a note about Secret access, but nothing critical.
+
+Now trace the chain manually. The Deployment uses `operator-sa`. That ServiceAccount is bound cluster-wide to `operator-manager-role`. That role can create and patch ClusterRoleBindings. The operator can therefore grant itself (or any ServiceAccount) `cluster-admin` at runtime. It also has read/write access to every Secret cluster-wide.
+
+kube-linter cannot see this because it never builds the graph.
+
+<Figure src={escalationChain} alt="RBAC privilege escalation chain" caption="The chain from Deployment to ServiceAccount to ClusterRoleBinding to ClusterRole reveals a self-escalation path that per-object linters miss entirely" number={1} />
+
+## How an attacker exploits this
+
+If an attacker compromises the operator pod (container escape, dependency vulnerability, supply chain attack), they inherit the ServiceAccount token automatically. Three commands to full cluster access:
+
+```bash
+# Step 1: verify permissions
+kubectl auth can-i create clusterrolebindings
+# yes
+
+# Step 2: grant cluster-admin
+kubectl create clusterrolebinding pwned-admin \
+  --clusterrole=cluster-admin \
+  --serviceaccount=operator-system:operator-sa
+
+# Step 3: full cluster access
+kubectl get secrets --all-namespaces -o json
+```
+
+No privilege escalation exploit needed. The RBAC configuration already provides the permissions. The operator was one ClusterRoleBinding away from full `cluster-admin`, and it had the ability to create that binding itself.
+
+This pattern is common in controller-runtime operators. The controller needs `create`/`patch` on Roles and RoleBindings for legitimate reconciliation, but the manifests often also grant it on ClusterRoleBindings, usually from copy-pasted templates that were never scoped down.
+
+## The fix: graph traversal on static manifests
+
+Detecting privilege escalation requires cross-object analysis. You need to see the Deployment, look up its ServiceAccount, find all bindings referencing that account, resolve the roles, and evaluate whether the resulting permission set enables escalation.
+
+kube-chainsaw follows this approach:
+
+1. **Parses all YAML manifests** from a directory: ClusterRoles, Roles, bindings, ServiceAccounts, Pods, Deployments, DaemonSets, StatefulSets, Jobs, and CronJobs
+2. **Builds a directed graph:** workload → ServiceAccount → binding → role → verbs/resources
+3. **Traverses the graph** to detect 15 categories of privilege escalation and misconfiguration
+4. **Adjusts severity based on binding scope:** cluster-wide bindings are HIGH or CRITICAL, namespace-scoped are WARNING, unbound roles are INFO
+
+<Figure src={analysisPipeline} alt="kube-chainsaw analysis pipeline" caption="Static manifests flow through parsing, graph building, rule checking, and severity classification to produce console, JSON, or SARIF output" number={2} />
+
+The severity model matters. The same ClusterRole produces different severity levels depending on how it's bound:
+
+| Binding type | Severity | Rationale |
+|---|---|---|
+| ClusterRoleBinding with wildcards | CRITICAL | Full cluster access |
+| ClusterRoleBinding without wildcards | HIGH | Broad but scoped access |
+| RoleBinding with wildcards | HIGH | Namespace-wide access |
+| RoleBinding without wildcards | WARNING | Limited blast radius |
+| No binding (unbound) | INFO | Dormant template |
+
+No per-object linter can make this distinction. It requires correlating the role with its bindings.
+
+## Hands-on walkthrough
+
+### Install
+
+```bash
+go install github.com/ugiordan/kube-chainsaw/cmd/kube-chainsaw@latest
+```
+
+Binaries are also available from the [GitHub releases page](https://github.com/ugiordan/kube-chainsaw/releases). Docker and GitHub Action options are also available.
+
+### Scan your manifests
+
+```bash
+$ kube-chainsaw config/
+```
+
+Output:
+
+```
+=== HIGH ===
+
+  [KC-006] Secrets access
+    File:        config/rbac/role.yaml
+    Resource:    ClusterRole/operator-manager-role
+    Description: Role "operator-manager-role" grants access to
+                 dangerous resource "secrets"
+    Remediation: Restrict Secrets access to specific namespaces
+                 and only the verbs needed
+
+  [KC-010] RBAC modification capability
+    File:        config/rbac/role.yaml
+    Resource:    ClusterRole/operator-manager-role
+    Description: Role "operator-manager-role" grants access to
+                 dangerous resource "clusterrolebindings"
+    Remediation: Limit RBAC modification to dedicated admin Roles
+                 with proper audit
+
+  [KC-011] Privilege escalation via Role/Binding modification
+    File:        config/rbac/role.yaml
+    Resource:    ClusterRole/operator-manager-role
+    Description: Role "operator-manager-role" can create/modify
+                 Roles or Bindings
+    Remediation: Restrict ability to create/modify Roles and
+                 Bindings to admin users only
+
+Total: 3 findings [3 HIGH]
+```
+
+Compare with kube-linter on the same manifests:
+
+```bash
+$ kube-linter lint config/
+# Only flags: "binding to cluster role that has
+#   [create get list patch update watch] access to [secrets]"
+# Misses: RBAC modification, privilege escalation via
+#   Bindings, workload creation risk
+```
+
+### Generate SARIF for GitHub Code Scanning
+
+```bash
+$ kube-chainsaw config/ --output results.sarif
+```
+
+This produces a SARIF 2.1.0 file compatible with GitHub code scanning, GitLab SAST, or any SARIF-compatible platform.
+
+### Suppress accepted risks
+
+For cases where a finding is a known, accepted risk (e.g., the operator genuinely needs cluster-wide Secret access for TLS certificate management):
+
+```yaml
+# suppressions.yaml
+suppressions:
+  - rule_id: KC-006
+    resource_name: operator-manager-role
+    reason: "Operator manages TLS certificates stored as Secrets"
+```
+
+```bash
+$ kube-chainsaw config/ --suppressions suppressions.yaml
+```
+
+Suppressed findings still appear in output (marked as suppressed) for audit trail purposes but don't affect the exit code.
+
+### CI integration
+
+```yaml
+- uses: ugiordan/kube-chainsaw@v1
+  with:
+    paths: config/ deploy/
+    fail-on: HIGH
+    format: sarif
+    output: results.sarif
+
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: results.sarif
+```
+
+The workflow fails if any unsuppressed finding at HIGH or above is detected. SARIF results appear in the repository's **Security** tab.
+
+## What gets detected
+
+kube-chainsaw runs [15 detection rules](https://ugiordan.github.io/kube-chainsaw/reference/rules/) organized in three categories:
+
+**Risky permissions on ClusterRoles and Roles:** wildcard permissions (`verbs: ["*"]` or `resources: ["*"]`), dangerous verbs (`escalate`, `impersonate`, `bind`), sensitive resource access (Secrets, `pods/exec`, `pods/attach`, nodes, persistent volumes), and escalation combinations (`create`/`patch`/`update` on roles or bindings within the same rule).
+
+**Workload-to-cluster-admin privilege chains:** traces the full path from a workload (Pod, Deployment, Job) through its ServiceAccount and bindings to the referenced role. Flags workloads whose ServiceAccount is bound to `cluster-admin`, and RoleBindings that reference a ClusterRole instead of a namespace-scoped Role (a common misconfiguration where a developer intends namespace-level access but references a ClusterRole).
+
+**Aggregated ClusterRole detection:** detects ClusterRoles that use label selectors to dynamically combine permissions from other ClusterRoles. Because effective permissions depend on which ClusterRoles match the selector at runtime, they can't be fully determined from static manifests alone.
+
+All checks are apiGroup-aware, so a CRD named `secrets` in the `custom.example.com` group won't trigger false positives.
+
+## kube-chainsaw vs. the field
+
+| Tool | Static analysis | Graph traversal | Privilege chains | Workload analysis |
+|---|---|---|---|---|
+| kube-chainsaw | Yes | Yes | Yes | Yes |
+| kube-linter | Yes | No | No | No |
+| KubiScan | No (live cluster) | Yes | Yes | No |
+| rbac-tool | No (live cluster) | Yes | No | No |
+| kubectl-who-can | No (live cluster) | Yes | No | No |
+
+kube-chainsaw is the only tool that performs static graph traversal on YAML manifests to detect privilege escalation chains before deployment, requiring no live cluster. The other graph-aware tools (KubiScan, rbac-tool, kubectl-who-can) all require a running cluster.
+
+## Best practices
+
+1. **Scope ClusterRoles to minimum required resources and verbs.** If the operator only needs to read Secrets in its own namespace, use a local Role and RoleBinding instead of cluster-wide resources.
+
+2. **Never grant create/patch/update on ClusterRoleBindings unless absolutely required.** This is the most dangerous permission an operator can have. It enables self-escalation to `cluster-admin`.
+
+3. **Use RoleBindings instead of ClusterRoleBindings when possible.** A RoleBinding referencing a ClusterRole limits scope to a single namespace, reducing blast radius.
+
+4. **Run kube-chainsaw alongside kube-linter in CI.** They're complementary: kube-linter covers CIS benchmarks, resource limits, SecurityContext, and container best practices. kube-chainsaw focuses on RBAC privilege chain analysis.
+
+5. **Suppress findings with documented reasons.** Every suppression should include a `reason` field explaining why the risk is accepted, creating an audit trail.
+
+Per-object linting catches the obvious problems. Graph-level analysis catches the ones that actually get exploited. Run both.
+
+*Also published on [Red Hat Developer](https://developers.redhat.com/articles/2026/07/07/why-your-rbac-linter-misses-privilege-escalation-chains-and-how-fix-it).*
