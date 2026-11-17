@@ -1,18 +1,18 @@
 ---
 title: 'kube-linter now detects RBAC privilege escalation chains'
-description: 'The graph-based RBAC analysis from kube-chainsaw is now built into kube-linter. What it catches, how to enable it, and how to simplify your CI.'
+description: 'The graph-based RBAC analysis from kube-chainsaw merged into kube-linter. The story of how a sidecar tool became an upstream feature, what the review caught along the way, and how to enable it.'
 pubDate: 'Nov 17 2026'
 ---
 
-Four months ago I wrote about a blind spot in Kubernetes RBAC linting: per-object linters cannot see indirect privilege escalation, because the chain from a Deployment through its ServiceAccount to a ClusterRoleBinding spans multiple manifests. I built [kube-chainsaw](https://github.com/ugiordan/kube-chainsaw) to fill the gap, and the advice at the time was to run it alongside kube-linter.
+Four months ago I [wrote about a blind spot](https://ugiordan.dev/blog/rbac-privilege-chains/) in Kubernetes RBAC linting. Per-object linters like kube-linter check each manifest in isolation, so they cannot see indirect privilege escalation: a Deployment runs as a ServiceAccount, that ServiceAccount is bound cluster-wide to a role, and that role can create ClusterRoleBindings. The operator can grant itself cluster-admin at runtime, and no single manifest looks alarming while it happens. My conclusion at the time was pragmatic: keep kube-linter for manifest hygiene, and run a second tool, kube-chainsaw, alongside it for the graph analysis.
 
-As of last week, that advice is obsolete. The graph analysis merged into [kube-linter](https://github.com/stackrox/kube-linter) itself as the `kube-chainsaw-rbac` check: the analyzer is imported as a library, same pattern kube-linter already uses for kubeconform. One linter, one report, one SARIF file.
+That advice is now obsolete, and I am the one who made it obsolete. The graph analysis merged into kube-linter itself, upstream, as the `kube-chainsaw-rbac` check. One linter, one report, one SARIF file.
 
-This post is the short version of what changed: what the check catches, how to enable it, and what still needs the standalone tool.
+This post is the story of how a sidecar tool became an upstream feature: why I stopped being satisfied with the sidecar answer, how the contribution works, what the review process caught along the way (including real gaps in my own detection logic), and what you need to do to turn the capability on. If you read the previous post, this is your migration guide. If you didn't, the next section catches you up in two minutes.
 
-## Same manifests, new result
+## The blind spot, in two minutes
 
-Take the operator setup from the previous post. A ClusterRole with Secret access and RBAC modification rights, a cluster-wide binding, a Deployment using it:
+Here is the operator setup from the previous post. Three ordinary manifests: a ClusterRole with Secret access and RBAC modification rights, a cluster-wide binding, and a Deployment using it.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -60,9 +60,46 @@ spec:
           image: operator:latest
 ```
 
-kube-linter 0.8.3, the latest release, reports six findings on this input: `latest-tag`, `no-read-only-root-fs`, `non-existent-service-account`, `run-as-non-root`, `unset-cpu-requirements`, `unset-memory-requirements`. All valid, all hygiene. The escalation chain is invisible, same as in July.
+No wildcards. No cluster-admin binding. kube-linter reports six findings on this input: `latest-tag`, `no-read-only-root-fs`, `non-existent-service-account`, `run-as-non-root`, `unset-cpu-requirements`, and `unset-memory-requirements`. All valid, all hygiene.
 
-With the check enabled, the picture changes:
+Meanwhile the operator running here can grant itself cluster-admin in three commands, because its role can create ClusterRoleBindings and it is bound cluster-wide. An attacker who compromises the pod inherits the ServiceAccount token and the rest is kubectl. The full walkthrough, including the exploit, is in the previous post; the short version is that the escalation path spans multiple manifests, and a linter that reads one manifest at a time is structurally unable to see it.
+
+## Why a sidecar tool was the wrong ending
+
+kube-chainsaw worked. It built the permission graph, traced the chains, and flagged exactly this setup. But working is not the same as mattering, and a nagging problem with the previous post grew the more I looked at it.
+
+A sidecar tool only reaches the people who go looking for it: readers of security posts, teams hardening their pipelines proactively, the people already worried. The blind spot lives in the default experience, in the linter that runs in thousands of CI pipelines and reports green on manifests that contain a path to cluster-admin. The previous post even contained a comparison table listing kube-linter with graph traversal marked No. I wrote that table, and publishing it felt like documenting a bug in someone else's house and telling my readers to buy a second house.
+
+The fix belonged where the bug was. If the missing capability is correlation across manifests, then the linter that already loads all the manifests is the natural place to correlate them.
+
+## The contribution
+
+Two things made the upstream move possible rather than heroic.
+
+First, kube-linter already had a precedent for embedding external analyzers: its kubeconform integration imports the kubeconform library and wraps it in a template. The pattern existed, so the question was not whether kube-linter could host an external analyzer, only whether mine could be hosted.
+
+Second, and mostly by accident, I had kept kube-chainsaw's analyzer package free of external dependencies. It reads a data structure describing roles, bindings, service accounts, and workloads, and returns findings. Standard library only. What was an aesthetic choice while building a CLI became the decisive fact for the integration: importing it into kube-linter added nothing to kube-linter's dependency tree. The contribution was a template and a converter, not a dependency negotiation.
+
+The work split into two pull requests. The first taught kube-linter's diagnostic model to carry severity and metadata, so findings could say how bad they are and which rule produced them. The second was the integration itself: a template that converts kube-linter's typed objects into the analyzer's model, runs the analysis, and maps findings back onto the objects they came from.
+
+## The review made it better than I could have
+
+Here is the part of the story I did not expect to enjoy. I opened the pull request in July thinking the hard part was done. The analyzer was tested, the tool was in production, the integration passed its own tests. Then the review started, and over three rounds it found real gaps, each one arriving with a failing test that reproduced the problem:
+
+- Objects whose namespaces were omitted in YAML defaulted differently in the converter than in the analyzer, so a pod with no explicit namespace silently missed its privilege chain.
+- Two files defining the same ClusterRole overwrote each other during conversion, and the dangerous one could be the one that disappeared.
+- Grants through service account groups were invisible. A binding to `system:serviceaccounts:default`, which grants to every service account in that namespace, linked nothing. This one was not an integration bug: my standalone tool missed it too.
+- Rule selections that could never fire, like asking for the Secret-analysis rules in an integration that never loads Secret objects, were accepted silently.
+
+The tool I built to find blind spots had its own. There is a lesson in that which I will come back to.
+
+Each round made the detection sharper. The group-identity fix alone is arguably the most important capability change in the whole story: service accounts receive grants through their implicit identities, the `system:serviceaccounts:<namespace>` group, the `system:serviceaccounts` group, `system:authenticated`, and their user name `system:serviceaccount:<namespace>:<name>`, and real clusters bind to those groups all the time. From kube-chainsaw v1.1.2 and this integration, all of those link the workload to the role.
+
+Credit where it is due: the reviewer, janisz, drove most of that hardening, and the failing-test-per-finding discipline turned what could have been an adversarial review into the best kind of collaboration.
+
+## What shipped: the same manifests, re-run
+
+The payoff. Same operator manifests, same linter, with the check enabled:
 
 ```bash
 kube-linter lint operator.yaml --include kube-chainsaw-rbac
@@ -76,19 +113,42 @@ operator.yaml: (object: <no namespace>/operator-manager-role rbac.authorization.
 operator.yaml: (object: <no namespace>/operator-manager-role rbac.authorization.k8s.io/v1, Kind=ClusterRole) [HIGH] Privilege escalation via role/binding modification: Role "operator-manager-role" can create/modify roles or bindings (privilege escalation risk) (check: kube-chainsaw-rbac, remediation: Restrict ability to create/modify roles and bindings to admin users only)
 ```
 
-The three findings that matter are the ones that were missing: secrets access, RBAC modification, and the combination that lets this operator grant itself `cluster-admin` at runtime. Severity still comes from binding scope, so the same role bound with a namespace-scoped RoleBinding reports WARNING instead of HIGH.
+The three findings that matter are the ones that were missing: secrets access, RBAC modification, and the combination that lets this operator grant itself cluster-admin at runtime. Severity comes from binding scope, so the same role bound with a namespace-scoped RoleBinding reports WARNING instead of HIGH, and an unbound role is only INFO. That distinction requires correlating the role with its bindings, which is exactly what per-object checks cannot do.
 
-## Enabling the check
+And the group-identity detection that came out of the review, on a pod that is bound to cluster-admin through its namespace group:
 
-The change [merged into main](https://github.com/stackrox/kube-linter/pull/1216) and ships in the next release. Until that release is cut, build from source: `go install golang.stackrox.io/kube-linter/cmd/kube-linter@main`.
+```
+group-binding.yaml: (object: default/batch-job /v1, Kind=Pod) [CRITICAL] Pod running with cluster-admin privileges: Pod "batch-job" uses ServiceAccount "default/app-sa" which is bound to cluster-admin via ClusterRoleBinding "legacy-grant" (check: kube-chainsaw-rbac, remediation: Never use cluster-admin for pod service accounts; create a scoped role)
+```
 
-The check is opt-in, so nothing changes for existing users until you ask for it:
+The first pull request pays off in the output format too. Diagnostics now carry severity, so SARIF results map to `error`, `warning`, and `note` levels, attach the rule ID, remediation, and fingerprint as properties, and emit partial fingerprints for deduplication. GitHub Code Scanning finally triages these findings by severity instead of showing them as a flat list.
+
+```json
+{
+  "ruleId": "kube-chainsaw-rbac",
+  "level": "error",
+  "properties": {
+    "rule_id": "KC-006",
+    "fingerprint": "a5c1516c...",
+    "remediation": "Restrict secrets access to specific namespaces and only the verbs needed"
+  },
+  "partialFingerprints": {
+    "primaryLocationLineHash": "a5c1516c..."
+  }
+}
+```
+
+## Turning it on
+
+The check is opt-in, so existing pipelines keep their behavior until you ask for it.
+
+Get a version with the check (it shipped in kube-linter vX.Y; until that release is cut, build from source with `go install golang.stackrox.io/kube-linter/cmd/kube-linter@latest`):
 
 ```bash
 kube-linter lint config/ --include kube-chainsaw-rbac
 ```
 
-Or in the config file, alongside the checks you already run:
+Or add it to the checks you already run in your config file:
 
 ```yaml
 checks:
@@ -96,7 +156,7 @@ checks:
     - kube-chainsaw-rbac
 ```
 
-The parameters from the standalone tool are available by defining a custom check on the same template:
+The parameters from the standalone tool are available by defining a custom check on the same template, so you can scope rules, raise the severity floor, and document accepted risks:
 
 ```yaml
 customChecks:
@@ -118,68 +178,11 @@ suppressions:
     reason: "Operator manages TLS certificates stored as Secrets"
 ```
 
-## What's new since July
+And selecting a rule whose input kinds the integration does not load, such as the NetworkPolicy or Secret rules, fails at configuration time with an explicit error instead of silently producing no findings. That error exists because of the review, too.
 
-Two things landed during the upstream review that even standalone kube-chainsaw users did not have in July.
+## The part you play
 
-**Group identities.** Every service account receives grants not only through direct ServiceAccount subjects, but also through its implicit identities: the `system:serviceaccounts:<namespace>` group, the `system:serviceaccounts` group, `system:authenticated`, and its user name `system:serviceaccount:<namespace>:<name>`. A binding to any of those now links the workload to the role:
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: batch-job
-  namespace: default
-spec:
-  serviceAccountName: app-sa
-  containers:
-    - name: job
-      image: busybox:1.36
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: legacy-grant
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-  - kind: Group
-    name: system:serviceaccounts:default
-```
-
-```
-group-binding.yaml: (object: default/batch-job /v1, Kind=Pod) [CRITICAL] Pod running with cluster-admin privileges: Pod "batch-job" uses ServiceAccount "default/app-sa" which is bound to cluster-admin via ClusterRoleBinding "legacy-grant" (check: kube-chainsaw-rbac, remediation: Never use cluster-admin for pod service accounts; create a scoped role)
-```
-
-This slipped through the July version of kube-chainsaw too. It was found during the review and fixed in [v1.1.2](https://github.com/ugiordan/kube-chainsaw/releases/tag/v1.1.2).
-
-**Severity in SARIF.** kube-linter diagnostics now carry severity and metadata, so SARIF output maps findings to `error`, `warning`, and `note` levels, attaches the rule ID, remediation, and fingerprint as properties, and emits partial fingerprints for deduplication:
-
-```json
-{
-  "ruleId": "kube-chainsaw-rbac",
-  "level": "error",
-  "message": {
-    "text": "Secrets access: Role \"operator-manager-role\" grants access to dangerous resource \"secrets\""
-  },
-  "properties": {
-    "rule_id": "KC-006",
-    "fingerprint": "a5c1516c...",
-    "remediation": "Restrict secrets access to specific namespaces and only the verbs needed"
-  },
-  "partialFingerprints": {
-    "primaryLocationLineHash": "a5c1516c..."
-  }
-}
-```
-
-GitHub Code Scanning finally triages these results by severity instead of showing them as a flat list.
-
-## One linter, one report
-
-If you followed the July setup, your CI runs two tools: kube-linter for manifest hygiene, kube-chainsaw for RBAC chains, two SARIF uploads. That collapses into one job:
+If you followed the July setup, your pipeline runs two tools with two SARIF uploads. That collapses into one job:
 
 ```yaml
 - run: kube-linter lint config/ --include kube-chainsaw-rbac --format sarif --output results.sarif
@@ -188,16 +191,21 @@ If you followed the July setup, your CI runs two tools: kube-linter for manifest
     sarif_file: results.sarif
 ```
 
-One command, one report, one upload. Delete the second job unless you need the parts below.
+One honest caveat on scope. The integration covers the RBAC and workload rules, 23 of the 31. Rules that analyze NetworkPolicy, OpenShift SecurityContextConstraints, external exposure, or Secret manifests are rejected at configuration time, because the integration does not load those kinds. OpenShift users who need the SCC analysis, and anyone scanning a live cluster, should keep the standalone tool. For RBAC privilege chains, kube-linter now covers it.
 
-## What stays in kube-chainsaw
+## The lesson
 
-Honest scope: the integration covers the RBAC and workload rules, 23 of the 31. Rules that analyze NetworkPolicy, OpenShift SecurityContextConstraints, external exposure, or Secret manifests are rejected at configuration time, because the adapter does not load those kinds. Live cluster scanning with `--from-cluster` also stays standalone. If you need those, keep the standalone tool. For RBAC privilege chains, kube-linter now covers it.
+I started this project by writing a post that ended with run both tools. I am ending it by deleting half of that advice from my own CI.
 
-## How it got there
+The next time you find yourself writing run my tool alongside theirs, it is worth asking whether your tool belongs inside theirs. The gap between a useful sidecar and a merged feature is where most of the actual users are, and it is smaller than it looks when the project has an embedding pattern to follow and your code has no dependencies to argue about.
 
-The version that merged is meaningfully better than the one I opened in July, and most of that is the review. The rounds on the pull request caught real gaps: objects whose omitted namespaces default silently, duplicate resource identities overwriting each other, grants through service account groups, rule selections that could never fire because their input kinds are not loaded. Every finding came with a failing test, which is the best kind of review. Credit where it is due: janisz drove most of that hardening.
+The other lesson is about review. I merged better code than I wrote, because someone read it hard enough to find the namespace assumptions, the silent overwrites, and the group grants, and because every finding arrived as a failing test. If you maintain a project, that is the review culture to build. If you contribute, that is the review culture to walk into with a thick skin and a better tool at the end.
 
-One engineering note worth keeping: kube-chainsaw's analyzer package has no dependencies outside the standard library, so importing it into kube-linter added nothing to kube-linter's dependency tree. That constraint is what made the integration a two-file conversation instead of a dependency negotiation.
+Enable the check, point your SARIF upload at one file, and delete the second CI job. The blind spot from July is closed inside the linter most people already run.
 
-The blind spot from July is closed where it matters most, inside the linter people already run. Enable the check, delete the second CI job, and point your SARIF upload at one file.
+Learn more:
+
+- [The original post: why your RBAC linter misses privilege escalation chains](https://ugiordan.dev/blog/rbac-privilege-chains/)
+- [kube-linter on GitHub](https://github.com/stackrox/kube-linter)
+- [kube-chainsaw detection rules reference](https://ugiordan.github.io/kube-chainsaw/reference/rules/)
+- [kube-chainsaw on GitHub](https://github.com/ugiordan/kube-chainsaw)
